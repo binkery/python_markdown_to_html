@@ -197,6 +197,7 @@ class Site(object):
         html = html.replace('{{article}}', body)
         html = html.replace('{{title}}', article.title)
         html = html.replace('{{categories}}', self.getCategoryHTML())
+        html = html.replace('{{update-time}}',time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time())))
         dir = os.path.dirname(HTML_DIR + filepath)
         if not os.path.exists(dir):
             os.makedirs(dir)
