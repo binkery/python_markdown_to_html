@@ -2,15 +2,23 @@
 # -*- coding: utf-8 -*-
 import sys
 import os
-sys.path.append('..')
+# sys.path.append('..')
 import markdown
 import importlib
-importlib.reload(sys)
+# importlib.reload(sys)
 import shutil
 
 SITE = 'http://blog.binkery.com/'
-ARTICLE_DIR = '../article/'
-HTML_DIR = '../public/'
+# ARTICLE_DIR = '../article/'
+# HTML_DIR = '../public/'
+# print(os.getcwd())
+# print(os.path.split(os.path.realpath(__file__))[0])
+WORK_PATH = os.path.split(os.path.realpath(__file__))[0]
+ARTICLE_DIR = WORK_PATH + '/../article/'
+HTML_DIR = WORK_PATH + '/../public/'
+
+print(ARTICLE_DIR)
+print(HTML_DIR)
 
 class Article(object):
 
@@ -111,7 +119,7 @@ class Site(object):
             self.categories[c].append(article)
 
     def readHtmlTemp(self):
-        f = open('templete/article.html')
+        f = open(WORK_PATH + '/templete/article.html')
         content = f.read()
         f.close()
         return content
@@ -242,7 +250,7 @@ os.mkdir(HTML_DIR + "article/")
 os.mkdir(HTML_DIR + "tag/")
 os.mkdir(HTML_DIR + "style/")
 
-shutil.copy2('style/style.css', '../public/style/style.css')
+shutil.copy2(WORK_PATH + '/style/style.css', WORK_PATH + '/../public/style/style.css')
 
 files = os.listdir(ARTICLE_DIR)
 site = Site()
