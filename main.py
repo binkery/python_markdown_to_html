@@ -2,17 +2,12 @@
 # -*- coding: utf-8 -*-
 import sys
 import os
-# sys.path.append('..')
 import markdown
 import importlib
-# importlib.reload(sys)
 import shutil
+import time
 
 SITE = 'http://blog.binkery.com/'
-# ARTICLE_DIR = '../article/'
-# HTML_DIR = '../public/'
-# print(os.getcwd())
-# print(os.path.split(os.path.realpath(__file__))[0])
 WORK_PATH = os.path.split(os.path.realpath(__file__))[0]
 ARTICLE_DIR = WORK_PATH + '/../article/'
 HTML_DIR = WORK_PATH + '/../public/'
@@ -37,11 +32,9 @@ class Article(object):
         fileName = localPath[0:localPath.find('-')]
 
         self.localFileName = fileName + ".html"
-        print("fileName = " + fileName)
         self.link = SITE + 'article/' + fileName + ".html"
-        print("link = " + self.link)
         self.date = localPath[0:8]
-        print("date = " + self.date)
+        self.index = localPath[9:11]
 
     def getCategories(self):
         html = ''
@@ -124,6 +117,10 @@ class Site(object):
         f.close()
         return content
 
+    def sortArtilce(self,articles):
+        articles = sorted(articles,key = lambda article : (time.mktime(time.strptime(article.date, '%Y%m%d')),int(article.index)),reverse=True)
+        return articles
+
     def generate(self):
 
         self.toHomeIndexPage()
@@ -140,6 +137,8 @@ class Site(object):
             self.toCategoryPage(c)
 
     def toHomeIndexPage(self):
+        self.articles = self.sortArtilce(self.articles)
+
         html = '<div class="">'
         for article in self.articles :
             html += article.getArticleHeader()
@@ -154,7 +153,8 @@ class Site(object):
 
     def toTagPage(self,tag):
         html = '<div class="">'
-        for article in self.tags[tag] :
+        articles = self.sortArtilce(self.tags[tag])
+        for article in articles :
             html += article.getArticleHeader()
         html += '</div>'
         self.writeHtml(html,tag,"tag/" + tag + "/index.html")
@@ -166,8 +166,9 @@ class Site(object):
         self.writeHtml(html,"Category Home Index Page","category/index.html")
 
     def toCategoryPage(self,category):
+        articles = self.sortArtilce(self.categories[category])
         html = '<div class="">'
-        for article in self.categories[category] :
+        for article in articles :
             html += article.getArticleHeader()
         html += '</div>'
         self.writeHtml(html,"Category" + category,"category/" + category + "/index.html")
@@ -196,12 +197,9 @@ class Site(object):
         html = html.replace('{{article}}', body)
         html = html.replace('{{title}}', article.title)
         html = html.replace('{{categories}}', self.getCategoryHTML())
-        print("filepath = " + filepath)
         dir = os.path.dirname(HTML_DIR + filepath)
-        print("dir = " + dir)
         if not os.path.exists(dir):
             os.makedirs(dir)
-            print("mkdir " + dir)
 
         fo = open(HTML_DIR + filepath, 'w')
         fo.write(html)
@@ -255,7 +253,6 @@ shutil.copy2(WORK_PATH + '/style/style.css', WORK_PATH + '/../public/style/style
 files = os.listdir(ARTICLE_DIR)
 site = Site()
 for file in files:
-    print("file = " + file)
     if file == '.git' :
         continue
     path = os.path.join('%s%s' % (ARTICLE_DIR,file))
