@@ -1,265 +1,185 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import sys
 import os
+import codecs
+import datetime
 import markdown
-import importlib
-import shutil
 import time
 
-SITE = 'http://blog.binkery.com/'
-WORK_PATH = os.path.split(os.path.realpath(__file__))[0]
-ARTICLE_DIR = WORK_PATH + '/../article/'
-HTML_DIR = WORK_PATH + '/../public/'
 
-print(ARTICLE_DIR)
-print(HTML_DIR)
-
-class Article(object):
-
-    def __init__(self, content, title, tag, category, localPath):
-        self.content = content
-        self.title = title.strip()
-        self.tag = []
-        for t in tag:
-            if t != '':
-                self.tag.append(t.strip())
-        self.category = []
-        for c in category:
-            if c != '':
-                self.category.append(c.strip())
-
-        fileName = localPath[0:localPath.find('-')]
-
-        self.localFileName = fileName + ".html"
-        self.link = SITE + 'article/' + fileName + ".html"
-        self.date = localPath[0:8]
-        self.index = localPath[9:11]
-
-    def getCategories(self):
-        html = ''
-        for c in self.category :
-            html += '<a href="%scategory/%s/index.html">%s</a>\n' % (SITE, c, c)
-        return html
-
-    def getTags(self):
-        html = ''
-        for t in self.tag :
-            html += '<a href="%stag/%s/index.html">%s</a>\n' % (SITE,t,t)
-        return html
-
-    def getArticleHeader(self):
-        html = '''
-            <div class="article_item">
-                <h2>
-                    <a href="%s">%s</a>
-                </h2>
-                <div class="line">
-                    <span>时间：</span>
-                    <span>%s</span>
-                </div>
-                <div class="line">
-                    <span>分类：</span>
-                    <span>%s</span>
-                </div>
-                <div class="line">
-                    <span>关键词：</span>
-                    <span>%s</span>
-                </div>
-            </div>
-        ''' % (self.link,self.title,self.date,self.getCategories(),self.getTags())
-        return html
-
-    def getArticleHeaderAtPage(self):
-        html = '''
-            <div class="article_header">
-                <h1>
-                    <a href="%s">%s</a>
-                </h1>
-                <div class="line">
-                    <span>时间：<span>
-                    <span>%s</span>
-                </div>
-                <div>
-                    <span>分类：</span>
-                    <span>%s<span>
-                </div>
-                <div>
-                    <span>关键词：</span>
-                    <span>%s</span>
-                </div>
-            </div>
-        ''' % (self.link,self.title,self.date,self.getCategories(),self.getTags())
-        return html
-
-class Site(object):
-
-    def __init__(self):
-        self.articles = []
-        self.tags = {}
-        self.categories = {}
-
-    def addArticle(self,article):
-        self.articles.append(article)
-        for t in article.tag :
-            if t not in self.tags :
-                self.tags[t] = []
-            self.tags[t].append(article)
-
-        for c in article.category:
-            if c not in self.categories :
-                self.categories[c] = []
-            self.categories[c].append(article)
-
-    def readHtmlTemp(self):
-        f = open(WORK_PATH + '/templete/article.html')
-        content = f.read()
+def write(path,content):
+    dir = os.path.dirname(path)
+    if not os.path.exists(dir):
+        os.makedirs(dir)
+    with codecs.open(path, "w", "utf-8") as f:
+        f.write(content)
         f.close()
-        return content
 
-    def sortArtilce(self,articles):
-        articles = sorted(articles,key = lambda article : (time.mktime(time.strptime(article.date, '%Y%m%d')),int(article.index)),reverse=True)
-        return articles
+def read_path_as_content(path):
+    if os.path.isdir(path):
+        md_file = os.path.join(path,'index.md')
+        if not os.path.exists(md_file):
+            return '# no title \n - no keyword \n - no datetime\n'
+    else :
+        md_file = path
+    with open(md_file,'r') as f:
+        content = f.read()
+    return content
 
-    def generate(self):
-
-        self.toHomeIndexPage()
-        self.toCategoryHomeIndexPage()
-        self.toTagHomeIndexPage()
-
-        for article in self.articles:
-            self.toArticlePage(article)
-
-        for tag in self.tags:
-            self.toTagPage(tag)
-
-        for c in self.categories:
-            self.toCategoryPage(c)
-
-    def toHomeIndexPage(self):
-        self.articles = self.sortArtilce(self.articles)
-
-        html = '<div class="">'
-        for article in self.articles :
-            html += article.getArticleHeader()
-        html += '</div>'
-        self.writeHtml(html, "首页", 'index.html')
-
-    def toTagHomeIndexPage(self):
-        html = ''
-        for tag in self.tags.keys() :
-            html += '<li><a href="%stag/%s/index.html">%s</a></li>\n' % (SITE,tag,tag)
-        self.writeHtml(html,"Tags Home Index Page","tag/index.html")
-
-    def toTagPage(self,tag):
-        html = '<div class="">'
-        articles = self.sortArtilce(self.tags[tag])
-        for article in articles :
-            html += article.getArticleHeader()
-        html += '</div>'
-        self.writeHtml(html,tag,"tag/" + tag + "/index.html")
-
-    def toCategoryHomeIndexPage(self):
-        html = ''
-        for c in self.categories :
-            html += '<li><a href="%scategories/%s/index.html">%s</a></li>' % (SITE,c,c)
-        self.writeHtml(html,"Category Home Index Page","category/index.html")
-
-    def toCategoryPage(self,category):
-        articles = self.sortArtilce(self.categories[category])
-        html = '<div class="">'
-        for article in articles :
-            html += article.getArticleHeader()
-        html += '</div>'
-        self.writeHtml(html,"Category" + category,"category/" + category + "/index.html")
-
-    def toArticlePage(self,article):
-        body = markdown.markdown(article.content)
-        html = '''
-            <div>
-                %s
-                <div class="">
-                %s
-                </div>
-            </div>
-        ''' % (article.getArticleHeaderAtPage(),body)
-        self.writeHtml(html,article.title,"article/" + article.localFileName)
-
-
-    def getCategoryHTML(self):
-        html = '\n'
-        for c in self.categories :
-            html += '<li><a href="%scategory/%s/">%s</a></li>\n' % (SITE, c, c)
-        return html
-
-    def writeHtml(self, body, title, filepath):
-        html = self.readHtmlTemp()
-        html = html.replace('{{article}}', body)
-        html = html.replace('{{title}}', title)
-        html = html.replace('{{categories}}', self.getCategoryHTML())
-        html = html.replace('{{update-time}}',time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time())))
-        dir = os.path.dirname(HTML_DIR + filepath)
-        if not os.path.exists(dir):
-            os.makedirs(dir)
-
-        fo = open(HTML_DIR + filepath, 'w')
-        fo.write(html)
-        fo.close()
-
-def generateArticle(path):
-    f = open(path,'r')
-    content = f.read()
-    lines = content.splitlines(True)
-    isContentStart = False
-    articleTitle = ''
-    articleContent = ''
-    articleTag = ''
-    articleCategory = ''
-    articleLocalPath = path[len(ARTICLE_DIR):]
-    for line in lines:
-        if isContentStart :
-            articleContent = articleContent + line
-            continue
-        elif line.startswith('title') :
-            articleTitle = line[6:].strip()
-        elif line.startswith('tag') :
-            articleTag = line[4:].strip().split(',')
-        elif line.startswith('category'):
-            articleCategory = line[9:].strip().split(',')
-        elif line.find('-----') != -1 :
-            isContentStart = True
-
-    f.close()
-    return Article(articleContent, articleTitle, articleTag, articleCategory, articleLocalPath)
-
-def deleteDirs(path):
-    if not os.path.exists(path) :
-        return
-    if  os.path.isdir(path):
-        for item in os.listdir(path):
-            deleteDirs(os.path.join(path, item))
-        if not os.listdir(path):
-               os.rmdir(path)
+def path_to_html_path(path):
+    #print('path_to_html_path ' + path)
+    if path == '../content/':
+        return '../html/index.html'
+    if os.path.isdir(path):
+        return '../html' + path[10:] + '/index.html'
     else:
-        os.remove(path)
+        return '../html' + path[10:-2] + 'html'
 
-deleteDirs(HTML_DIR)
-os.mkdir(HTML_DIR)
-os.mkdir(HTML_DIR + "article/")
-os.mkdir(HTML_DIR + "tag/")
-os.mkdir(HTML_DIR + "style/")
 
-shutil.copy2(WORK_PATH + '/style/style.css', WORK_PATH + '/../public/style/style.css')
+def write_article_to_file(article,content,path):
+    #print(article['link'])
+    #print(path)
+    #print(content)
+    article_content = markdown.markdown(content)
+    local_path = path_to_html_path(path)
+    article['description'] = ''
+    article['content'] = article_content
+    #print(local_path)
+    template = '''
+    <!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="renderer" content="webkit">
+    <meta http-equiv="Cache-Control" content="no-siteapp" />
+    <meta name ="viewport" content ="initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#337ab7">
+    <title>{article[title]} :: {site[app_name]}</title>
+    <meta name="keywords" content="{article[keyword]}">
+    <meta name="description" content="{article[description]}">
+    <link rel="stylesheet" href="{site[app_link]}/style.css">
+    <script>
+    var _hmt = _hmt || [];
+        (function() {{
+          var hm = document.createElement("script");
+          hm.src = "https://hm.baidu.com/hm.js?1258cd282e3e864279d9edd53837183b";
+          var s = document.getElementsByTagName("script")[0]; 
+          s.parentNode.insertBefore(hm, s);
+        }})();
+    </script>
+</head>
+<body>
+<header><p><a href="{site[app_link]}/">记录思考</a></p>
+</header>
+<nav>
+	<ul>
+		<li><a href="{site[app_link]}/">首页</a></li>
+		<li><a href="{site[app_link]}/daily/">每日思考</a></li>
+		<li><a href="{site[app_link]}/blogs/">站点日志</a></li>
+	</ul>
+</nav>
 
-files = os.listdir(ARTICLE_DIR)
-site = Site()
-for file in files:
-    if file == '.git' :
-        continue
-    path = os.path.join('%s%s' % (ARTICLE_DIR,file))
+<div id="div_article">
+     <article>
+     {article[content]}
+     <P> - EOF - </P>
+     <p> 本文链接 <a href="{site[app_link]}{article[link]}"> {site[app_link]}{article[link]}</a>，欢迎转载，转载请注明出处。</p>
+    </article>
+</div>
 
-    article = generateArticle(path)
-    site.addArticle(article)
+<footer>
+     <p>
+        网站更新时间:{site[last_modify_time]}
+         网站已经运行<span class=""> {site[since_setup]} </span>天 ,
+         离域名到期 {site[to_domain]}天，
+         离空间到期 {site[to_space]} 天，</p>
+     <p>CopyRight &copy; <a href="{site[app_link]}/">SpacePage.Top</a></p>
+</footer>
+</body>
+</html>
+'''.format(article=article,site=site)
+    #print(local_path)
+    write(local_path,template)
 
-site.generate()
-print ('=======')
+def path_to_link(path):
+    #print('===== ' + path)
+    if path == '../content/':
+       #print('=======')
+       return '/index.html'
+    if os.path.isdir(path):
+        return path[10:] + '/index.html'
+    else:
+        return path[10:-2] + 'html'
+
+def read_path_as_article(path):
+    if os.path.isdir(path):
+        md_file = os.path.join(path,'index.md')
+        if not os.path.exists(md_file):
+            return {
+                'title':'notitle',
+                'keyword':'nokeyword',
+                'datetime':'nodatetime',
+                'link':path_to_link(path)
+            }
+    else:
+        md_file = path
+    with open(md_file,'r') as f:
+        _title = f.readline().strip().lstrip('#')
+        _keyword = f.readline().strip().lstrip('-')
+        _datetime = f.readline().strip().lstrip('-')
+    return {
+        'title':_title,
+        'keyword':_keyword,
+        'datetime':_datetime,
+        'link':path_to_link(path)
+    }
+
+def dispatch_path(path):
+    article = read_path_as_article(path)
+    article_content = read_path_as_content(path)
+    if os.path.isdir(path):
+        files = os.listdir(path)
+        article_content += '\n## 文章列表 \n'
+        #print(' ------ article list')
+        for f in files:
+            if f == 'index.md':
+                continue
+            child_file = os.path.join(path,f)
+            child = read_path_as_article(child_file)
+            #print(' --------======== ')
+            article_content += '- [' + child['title'] + '](' + child['link'] + ')\n'
+    write_article_to_file(article,article_content,path)
+
+    if os.path.isdir(path):
+        files = os.listdir(path)
+        for f in files :
+            #print('=========' +f)
+            if f == 'index.md':
+                #print('continue')
+                continue
+            # 最后需要递归一下
+            dispatch_path(os.path.join(path,f))
+
+def date_from(y,m,d):
+    d1 = datetime.date.today()
+    d2 = datetime.date(y,m,d)
+    return (d1-d2).days
+
+def date_to(y,m,d):
+    d1 = datetime.date.today()
+    d2 = datetime.date(y,m,d)
+    return (d2-d1).days
+
+site = {}
+cst_tz = datetime.timezone(datetime.timedelta(hours=8))
+site['last_modify_time'] = datetime.datetime.now(tz=cst_tz).strftime("%Y-%m-%d %H:%M:%S")
+site['since_setup'] = date_from(2019,1,24)
+site['to_domain'] = date_to(2028,6,8)
+site['to_space'] = date_to(2020,12,11)
+site['app_name'] = '记录思考'
+site['app_link'] = 'https://spacepage.top'
+
+dispatch_path('../content/')
